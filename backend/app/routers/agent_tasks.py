@@ -1,11 +1,14 @@
 from typing import List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from app.database import get_db
 from app.models import AgentTask, Story, Scene
 from app.schemas import AgentTaskResponse, AgentTaskUpdate
+from app.services.rag_service import RAGService
 from datetime import datetime
+from uuid import uuid4
+import re
 
 router = APIRouter(prefix="/stories/{story_id}/agent-tasks", tags=["agent-tasks"])
 
@@ -72,10 +75,45 @@ async def accept_agent_task(
         )
         scene = scene_result.scalar_one_or_none()
         if scene and task.suggestion:
-            # For now, append suggestion as a note (in production, parse and apply)
-            scene.content = f"{scene.content}\n\n[Grammar Fix Applied]:\n{task.suggestion}"
+            # Extract corrected text from the grammar suggestion
+            match = re.search(r"### ✨ Corrected Scene\s*\n\s*> \*(.*?)\*", task.suggestion, re.DOTALL)
+            if match:
+                corrected_text = match.group(1).strip()
+                scene.content = corrected_text
+            else:
+                scene.content = task.suggestion
             scene.version += 1
             scene.updated_at = datetime.utcnow()
+
+            # Re-index scene in RAG
+            rag_service = RAGService()
+            await rag_service.index_scene(scene, db)
+
+    # If this is an idea generation task, create a new scene from the suggestion
+    elif task.task_type == "idea_generate" and task.suggestion:
+        # Get next scene order index
+        max_index_result = await db.execute(
+            select(func.max(Scene.order_index)).filter(Scene.story_id == story_id)
+        )
+        max_index = max_index_result.scalar() or -1
+        next_index = max_index + 1
+
+        # Create new scene from the expanded idea
+        new_scene = Scene(
+            id=str(uuid4()),
+            story_id=story_id,
+            title="Expanded Scene",
+            content=task.suggestion,  # The full expanded content
+            scene_type="scene",
+            order_index=next_index,
+        )
+        db.add(new_scene)
+        await db.commit()
+        await db.refresh(new_scene)
+
+        # Index the new scene in RAG
+        rag_service = RAGService()
+        await rag_service.index_scene(new_scene, db)
 
     task.status = "accepted"
     task.completed_at = datetime.utcnow()
