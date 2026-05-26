@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models import Character, Story
 from app.schemas import CharacterCreate, CharacterUpdate, CharacterResponse
+from app.services.story_manager import StoryManager
 from uuid import uuid4
 
 router = APIRouter(prefix="/stories/{story_id}/characters", tags=["characters"])
@@ -72,7 +73,8 @@ async def update_character(
     await db.commit()
     await db.refresh(character)
 
-    # TODO: Enqueue character_arc task
+    # Enqueue character_arc task
+    await StoryManager.enqueue_character_task(db, story_id, character_id)
 
     return character
 

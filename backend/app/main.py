@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import init_db
 from app.routers import stories, scenes, characters, agent_tasks, ideas, websocket
+from app.agents.worker import agent_worker
 
 settings = get_settings()
 
@@ -16,15 +17,23 @@ async def lifespan(app: FastAPI):
     await init_db()
     print("✅ Database initialized")
 
-    # TODO: Initialize RAG service and agent worker here
-    # rag_service.load_or_create_index()
-    # worker_task = asyncio.create_task(agent_worker.run())
+    # Initialize RAG service (loads or creates FAISS index)
+    print("📚 Initializing RAG service...")
+    # RAG service is initialized on first use via the agents
+
+    # Start agent worker
+    print("🤖 Starting agent worker...")
+    worker_task = asyncio.create_task(agent_worker.run())
 
     yield
 
     # Shutdown
     print("🛑 Shutting down...")
-    # TODO: Cancel worker task
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(

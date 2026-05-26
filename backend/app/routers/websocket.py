@@ -1,9 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.database import get_db
-from app.models import Story
-import json
+from app.ws.manager import connection_manager
 
 router = APIRouter(tags=["websocket"])
 
@@ -11,19 +7,17 @@ router = APIRouter(tags=["websocket"])
 @router.websocket("/ws/{story_id}")
 async def websocket_endpoint(websocket: WebSocket, story_id: str):
     """WebSocket endpoint for real-time agent events"""
-    await websocket.accept()
-    # TODO: Implement WebSocket connection manager
-    # TODO: Register connection with ConnectionManager
-    # TODO: Handle incoming messages and broadcast agent events
+    await connection_manager.connect(story_id, websocket)
 
     try:
         while True:
+            # Keep connection alive, listen for ping/pong
             data = await websocket.receive_text()
-            # Echo for now
-            await websocket.send_text(f"Echo: {data}")
+            # Echo ping/pong for keepalive
+            if data == "ping":
+                await websocket.send_text("pong")
     except WebSocketDisconnect:
-        # TODO: Unregister connection
-        pass
+        await connection_manager.disconnect(story_id, websocket)
     except Exception as e:
         print(f"WebSocket error: {e}")
-        await websocket.close(code=1000)
+        await connection_manager.disconnect(story_id, websocket)
