@@ -64,11 +64,12 @@ class RAGService:
         Also stores chunks in DB for retrieval mapping.
         """
         # Remove old chunks for this scene
+        from sqlalchemy import delete
         await db.execute(
-            db.query(RAGChunk).filter(
-                RAGChunk.source_id == scene.id,
-                RAGChunk.source_type == "scene",
-            ).delete()
+            delete(RAGChunk).where(
+                (RAGChunk.source_id == scene.id) &
+                (RAGChunk.source_type == "scene")
+            )
         )
 
         chunks = self._chunk_text(f"{scene.title or ''}\n{scene.content}")

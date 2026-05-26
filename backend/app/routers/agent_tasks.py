@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from app.database import get_db
-from app.models import AgentTask, Story
+from app.models import AgentTask, Story, Scene
 from app.schemas import AgentTaskResponse, AgentTaskUpdate
+from datetime import datetime
 
 router = APIRouter(prefix="/stories/{story_id}/agent-tasks", tags=["agent-tasks"])
 
@@ -63,11 +64,22 @@ async def accept_agent_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # If this is a grammar fix on a scene, apply the suggestion to scene content
+    if task.scene_id and task.task_type == "grammar_fix":
+        scene_result = await db.execute(
+            select(Scene).filter(Scene.id == task.scene_id)
+        )
+        scene = scene_result.scalar_one_or_none()
+        if scene and task.suggestion:
+            # For now, append suggestion as a note (in production, parse and apply)
+            scene.content = f"{scene.content}\n\n[Grammar Fix Applied]:\n{task.suggestion}"
+            scene.version += 1
+            scene.updated_at = datetime.utcnow()
+
     task.status = "accepted"
+    task.completed_at = datetime.utcnow()
     await db.commit()
     await db.refresh(task)
-
-    # TODO: Apply suggestion to scene if scene_id exists
 
     return task
 

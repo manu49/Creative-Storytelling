@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import init_db
-from app.routers import stories, scenes, characters, agent_tasks, ideas, websocket
+from app.routers import stories, scenes, characters, agent_tasks, ideas, websocket, export
 from app.agents.worker import agent_worker
 
 settings = get_settings()
@@ -58,6 +58,7 @@ app.include_router(scenes.router)
 app.include_router(characters.router)
 app.include_router(agent_tasks.router)
 app.include_router(ideas.router)
+app.include_router(export.router)
 app.include_router(websocket.router)
 
 
