@@ -2,6 +2,7 @@ from typing import List, Dict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models import Story
 from app.schemas import StoryCreate, StoryUpdate, StoryResponse, StoryDetailResponse
@@ -36,7 +37,11 @@ async def create_story(story_data: StoryCreate, db: AsyncSession = Depends(get_d
 @router.get("/{story_id}", response_model=StoryDetailResponse)
 async def get_story(story_id: str, db: AsyncSession = Depends(get_db)):
     """Get a specific story with all scenes and characters"""
-    result = await db.execute(select(Story).filter(Story.id == story_id))
+    result = await db.execute(
+        select(Story)
+        .filter(Story.id == story_id)
+        .options(selectinload(Story.scenes), selectinload(Story.characters))
+    )
     story = result.scalar_one_or_none()
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")

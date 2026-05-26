@@ -1,6 +1,6 @@
 import json
 from abc import ABC, abstractmethod
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from anthropic.types.tool_param import ToolParam

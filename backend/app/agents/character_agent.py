@@ -1,4 +1,5 @@
 import json
+from typing import List
 from app.agents.base_agent import BaseAgent
 from app.tools.story_tools import CHARACTER_TOOLS
 from anthropic.types.tool_param import ToolParam
