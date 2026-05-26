@@ -116,18 +116,24 @@ class RAGService:
     ) -> List[str]:
         """
         Retrieve top-k relevant chunks for a query, filtered by story_id.
+        Returns empty list if no chunks are indexed.
         """
+        # Return empty if no chunks are indexed
+        if not self.chunk_metadata or self.index.ntotal == 0:
+            return []
+
         query_embedding = self.embed_text(query)
         query_embedding = query_embedding.reshape(1, -1)
 
         # Search in FAISS
-        distances, indices = self.index.search(query_embedding, top_k * 2)
+        distances, indices = self.index.search(query_embedding, min(top_k * 2, self.index.ntotal))
 
         # Filter by story_id and deduplicate
         results = []
         seen_sources = set()
         for idx in indices[0]:
-            if idx >= len(self.chunk_metadata):
+            idx = int(idx)  # Ensure idx is int, not numpy type
+            if idx >= len(self.chunk_metadata) or idx < 0:
                 continue
 
             metadata = self.chunk_metadata[idx]

@@ -16,6 +16,11 @@ class SceneExpandAgent(BaseAgent):
         return "idea_generate"
 
     @property
+    def model(self) -> str:
+        """Use Sonnet for creative scene generation"""
+        return settings.SONNET_MODEL
+
+    @property
     def system_prompt(self) -> str:
         return """You are a creative screenwriter and novelist helping develop story ideas into full scenes.
 Your task is to transform a raw idea or outline into a compelling, fully-formed scene.
@@ -59,4 +64,19 @@ Remember to maintain narrative continuity with the existing story."""
         for block in response.content:
             if hasattr(block, "text"):
                 return block.text
+            elif hasattr(block, "type") and block.type == "tool_use":
+                if block.name == "expand_scene":
+                    content = block.input.get("expanded_content", "")
+                    dialogue = block.input.get("suggested_dialogue", [])
+                    notes = block.input.get("scene_notes", "")
+
+                    result = content + "\n"
+                    if dialogue:
+                        result += "\n### Key Dialogue:\n"
+                        for line in dialogue:
+                            result += f"- {line}\n"
+                    if notes:
+                        result += f"\n### Notes:\n{notes}\n"
+                    return result
+
         return "Scene generation failed"

@@ -16,6 +16,11 @@ class CharacterAgent(BaseAgent):
         return "character_arc"
 
     @property
+    def model(self) -> str:
+        """Use Sonnet for nuanced character analysis"""
+        return settings.SONNET_MODEL
+
+    @property
     def system_prompt(self) -> str:
         return """You are a character development specialist.
 Your task is to analyze character arcs and consistency across the story.
@@ -59,5 +64,24 @@ Focus on character authenticity and growth."""
         for block in response.content:
             if hasattr(block, "text"):
                 suggestion_lines.append(block.text)
+            elif hasattr(block, "type") and block.type == "tool_use":
+                if block.name == "update_character_arc":
+                    arc_notes = block.input.get("arc_notes", "")
+                    inconsistencies = block.input.get("inconsistencies", [])
+                    suggestions = block.input.get("development_suggestions", [])
+
+                    if arc_notes:
+                        suggestion_lines.append(f"\n### Arc Development:\n{arc_notes}\n")
+                    if inconsistencies:
+                        suggestion_lines.append("\n### Inconsistencies Found:\n")
+                        for inconsistency in inconsistencies:
+                            suggestion_lines.append(f"- {inconsistency}\n")
+                    if suggestions:
+                        suggestion_lines.append("\n### Development Suggestions:\n")
+                        for suggestion in suggestions:
+                            suggestion_lines.append(f"- {suggestion}\n")
+
+        if len(suggestion_lines) == 1:
+            suggestion_lines.append("Analysis complete.\n")
 
         return "\n".join(suggestion_lines)

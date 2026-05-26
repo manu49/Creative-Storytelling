@@ -130,7 +130,10 @@ class AgentWorker:
                 print(f"✅ Task {task.id} ({task.task_type}) completed")
 
             except Exception as e:
+                import traceback
+                error_details = traceback.format_exc()
                 print(f"❌ Task {task.id} failed: {e}")
+                print(f"Traceback:\n{error_details}")
                 # Mark as failed
                 task.status = "failed"
                 task.error_message = str(e)

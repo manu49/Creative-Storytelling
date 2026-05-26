@@ -16,6 +16,11 @@ class GrammarAgent(BaseAgent):
         return "grammar_fix"
 
     @property
+    def model(self) -> str:
+        """Use Sonnet for more nuanced grammar analysis"""
+        return settings.SONNET_MODEL
+
+    @property
     def system_prompt(self) -> str:
         return """You are a professional copyeditor specializing in creative writing.
 Your task is to identify and suggest grammar, spelling, style, and clarity improvements.
@@ -56,7 +61,21 @@ Only suggest meaningful improvements, not nitpicky changes."""
         suggestion_lines = ["## Grammar & Style Corrections\n"]
         for block in response.content:
             if hasattr(block, "type") and block.type == "tool_use":
-                # The tool was called, format the corrections nicely
-                suggestion_lines.append("Suggested improvements:\n")
+                if block.name == "apply_grammar_corrections":
+                    corrections = block.input.get("corrections", [])
+                    if corrections:
+                        suggestion_lines.append("Suggested improvements:\n")
+                        for corr in corrections:
+                            original = corr.get("original", "")
+                            replacement = corr.get("replacement", "")
+                            reason = corr.get("reason", "")
+                            suggestion_lines.append(
+                                f"- **{original}** → **{replacement}**\n  Reason: {reason}\n"
+                            )
+                    else:
+                        suggestion_lines.append("No significant grammar issues found.\n")
+
+        if len(suggestion_lines) == 1:
+            suggestion_lines.append("Analysis complete.\n")
 
         return "\n".join(suggestion_lines)

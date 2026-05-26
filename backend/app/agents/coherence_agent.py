@@ -16,6 +16,11 @@ class CoherenceAgent(BaseAgent):
         return "coherence_check"
 
     @property
+    def model(self) -> str:
+        """Use Sonnet for deeper narrative analysis"""
+        return settings.SONNET_MODEL
+
+    @property
     def system_prompt(self) -> str:
         return """You are a story editor specializing in narrative structure and coherence.
 Your task is to analyze the story for issues with:
@@ -58,5 +63,25 @@ Provide constructive suggestions for improvement."""
         for block in response.content:
             if hasattr(block, "text"):
                 suggestion_lines.append(block.text)
+            elif hasattr(block, "type") and block.type == "tool_use":
+                if block.name == "flag_coherence_issues":
+                    issues = block.input.get("issues", [])
+                    if issues:
+                        suggestion_lines.append("\n### Issues Found:\n")
+                        for issue in issues:
+                            issue_type = issue.get("issue_type", "other")
+                            description = issue.get("description", "")
+                            severity = issue.get("severity", "low")
+                            suggestion = issue.get("suggestion", "")
+                            suggestion_lines.append(
+                                f"**[{severity.upper()}] {issue_type}**: {description}\n"
+                            )
+                            if suggestion:
+                                suggestion_lines.append(f"  → {suggestion}\n")
+                    else:
+                        suggestion_lines.append("No coherence issues detected.\n")
+
+        if len(suggestion_lines) == 1:
+            suggestion_lines.append("Analysis complete.\n")
 
         return "\n".join(suggestion_lines)

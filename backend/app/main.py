@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.database import init_db
 from app.routers import stories, scenes, characters, agent_tasks, ideas, websocket, export
 from app.agents.worker import agent_worker
+import app.models  # Import models to register them with Base
 
 settings = get_settings()
 

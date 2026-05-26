@@ -1,12 +1,15 @@
 import json
 from abc import ABC, abstractmethod
-from typing import Callable, Awaitable, List
+from typing import Callable, Awaitable, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from anthropic.types.tool_param import ToolParam
 from app.models import Scene, Character, AgentTask
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService
+from app.config import get_settings
+
+settings = get_settings()
 
 
 class BaseAgent(ABC):
@@ -34,11 +37,17 @@ class BaseAgent(ABC):
         """Tool definitions for this agent"""
         pass
 
+    @property
+    def model(self) -> str:
+        """Model to use for this agent. Override in subclasses for specific models."""
+        return settings.SONNET_MODEL
+
     async def _build_context(self, task: AgentTask, db: AsyncSession) -> dict:
         """Build context for the agent (RAG + scene/character data)"""
         context = {
             "story_id": task.story_id,
             "rag_results": [],
+            "scenes": [],
         }
 
         # Fetch scene if this is a scene-specific task
@@ -60,7 +69,22 @@ class BaseAgent(ABC):
                 rag_results = await self.rag_service.retrieve(
                     query, task.story_id, top_k=3
                 )
-                context["rag_results"] = rag_results
+                context["rag_results"] = rag_results if rag_results else []
+        else:
+            # For story-wide tasks (like coherence_check), fetch all scenes
+            result = await db.execute(
+                select(Scene).filter(Scene.story_id == task.story_id)
+            )
+            scenes = result.scalars().all()
+            context["scenes"] = [
+                {
+                    "id": s.id,
+                    "title": s.title,
+                    "content": s.content,
+                    "location": s.location,
+                }
+                for s in scenes
+            ]
 
         return context
 
@@ -81,45 +105,57 @@ class BaseAgent(ABC):
         Builds context, calls LLM with tool_use loop, streams chunks if callback provided.
         Returns final suggestion text.
         """
-        # Build context
-        context = await self._build_context(task, db)
+        try:
+            # Build context
+            context = await self._build_context(task, db)
 
-        # Build messages
-        messages = [
-            {
-                "role": "user",
-                "content": self._build_user_prompt(task, context),
-            }
-        ]
+            # Build messages
+            messages = [
+                {
+                    "role": "user",
+                    "content": self._build_user_prompt(task, context),
+                }
+            ]
 
-        # For streaming generation (without tool_use), yield chunks
-        if on_chunk and not self.tools:
-            full_text = ""
-            async for chunk in self.llm_service.stream_generate(
-                system_prompt=self.system_prompt,
-                messages=messages,
-            ):
-                full_text += chunk
-                await on_chunk(chunk)
-            return full_text
+            # For streaming generation (without tool_use), yield chunks
+            if on_chunk and not self.tools:
+                full_text = ""
+                async for chunk in self.llm_service.stream_generate(
+                    system_prompt=self.system_prompt,
+                    messages=messages,
+                ):
+                    full_text += chunk
+                    await on_chunk(chunk)
+                return full_text
 
-        # For tool_use agents, run the tool loop
-        if self.tools:
-            response = await self.llm_service.run_tool_loop(
-                system_prompt=self.system_prompt,
-                messages=messages,
-                tools=self.tools,
-                tool_handler=self._handle_tool_use,
-            )
+            # For tool_use agents, run the tool loop
+            if self.tools:
+                response = await self.llm_service.run_tool_loop(
+                    system_prompt=self.system_prompt,
+                    messages=messages,
+                    tools=self.tools,
+                    tool_handler=self._handle_tool_use,
+                    model=self.model,
+                )
 
-            # Extract the final suggestion from the response
-            suggestion = self._extract_suggestion(response)
-            if on_chunk:
-                await on_chunk(suggestion)
-            return suggestion
+                # Extract the final suggestion from the response
+                suggestion = self._extract_suggestion(response)
+                if on_chunk:
+                    await on_chunk(suggestion)
+                return suggestion
 
-        # Fallback
-        return "Task completed"
+            # Fallback
+            return "Task completed"
+        except IndexError as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"❌ IndexError in {self.task_type}: {e}\n{error_details}")
+            raise
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"❌ Error in {self.task_type}: {e}\n{error_details}")
+            raise
 
     def _build_user_prompt(self, task: AgentTask, context: dict) -> str:
         """Build the user prompt with context"""
@@ -130,11 +166,20 @@ class BaseAgent(ABC):
             prompt += f"Scene: {scene['title']}\n"
             prompt += f"Location: {scene['location']}\n"
             prompt += f"Content:\n{scene['content']}\n\n"
+        elif context.get("scenes"):
+            # For story-wide tasks, include all scenes
+            prompt += "Story Scenes:\n\n"
+            for scene in context["scenes"]:
+                prompt += f"**{scene['title']}**\n"
+                if scene["location"]:
+                    prompt += f"Location: {scene['location']}\n"
+                prompt += f"{scene['content']}\n\n"
 
-        if context["rag_results"]:
+        if context.get("rag_results"):
             prompt += "Related content from story:\n"
             for result in context["rag_results"]:
-                prompt += f"- {result[:100]}...\n"
+                if result and len(result) > 0:
+                    prompt += f"- {result[:100]}...\n"
 
         return prompt
 

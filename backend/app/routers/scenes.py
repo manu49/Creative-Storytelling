@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models import Scene, Story
 from app.schemas import SceneCreate, SceneUpdate, SceneResponse
 from app.services.story_manager import StoryManager
+from app.services.rag_service import RAGService
 from uuid import uuid4
 
 router = APIRouter(prefix="/stories/{story_id}/scenes", tags=["scenes"])
@@ -37,6 +38,10 @@ async def create_scene(
     db.add(scene)
     await db.commit()
     await db.refresh(scene)
+
+    # Index scene in RAG
+    rag_service = RAGService()
+    await rag_service.index_scene(scene, db)
 
     # Enqueue agent tasks
     await StoryManager.enqueue_scene_tasks(db, story_id, scene.id)
@@ -85,8 +90,12 @@ async def update_scene(
     await db.commit()
     await db.refresh(scene)
 
-    # Enqueue grammar_fix task if content changed
+    # Re-index scene in RAG if content changed
     if scene_data.content is not None:
+        rag_service = RAGService()
+        await rag_service.index_scene(scene, db)
+
+        # Enqueue grammar_fix task
         await StoryManager.enqueue_task(
             db, story_id, "grammar_fix", priority=3, scene_id=scene_id
         )
