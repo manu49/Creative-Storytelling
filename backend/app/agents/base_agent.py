@@ -30,7 +30,7 @@ class BaseAgent(ABC):
 
     @property
     @abstractmethod
-    def tools(self) -> list[ToolParam]:
+    def tools(self) -> List[ToolParam]:
         """Tool definitions for this agent"""
         pass
 
@@ -74,7 +74,7 @@ class BaseAgent(ABC):
         self,
         task: AgentTask,
         db: AsyncSession,
-        on_chunk: Callable[[str], Awaitable[None]] | None = None,
+        on_chunk: Callable[[str], Awaitable[None]]
     ) -> str:
         """
         Run the agent on a task.

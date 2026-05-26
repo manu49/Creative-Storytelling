@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.models import Story, Scene, Character, AgentTask
 from uuid import uuid4
 from datetime import datetime
+from typing import Optional, Tuple
 
 
 class StoryManager:
@@ -14,8 +15,8 @@ class StoryManager:
         story_id: str,
         task_type: str,
         priority: int = 5,
-        scene_id: str | None = None,
-        input_context: dict | None = None,
+        scene_id: Optional[str] = None,
+        input_context: Optional[dict] = None
     ) -> AgentTask:
         """
         Enqueue an agent task. Deduplicates pending tasks of the same type.
@@ -58,7 +59,7 @@ class StoryManager:
         db: AsyncSession,
         story_id: str,
         scene_id: str,
-    ) -> tuple[AgentTask, AgentTask]:
+    ) -> Tuple[AgentTask, AgentTask]:
         """Enqueue grammar fix and coherence check for a scene"""
         grammar_task = await StoryManager.enqueue_task(
             db,

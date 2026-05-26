@@ -28,7 +28,7 @@ Use the update_character_arc tool to:
 Focus on character authenticity and growth."""
 
     @property
-    def tools(self) -> list[ToolParam]:
+    def tools(self) -> List[ToolParam]:
         return CHARACTER_TOOLS
 
     async def _handle_tool_use(self, tool_name: str, tool_input: dict) -> str:

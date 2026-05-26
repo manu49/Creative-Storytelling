@@ -1,3 +1,4 @@
+from typing import List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
@@ -9,10 +10,10 @@ from datetime import datetime
 router = APIRouter(prefix="/stories/{story_id}/agent-tasks", tags=["agent-tasks"])
 
 
-@router.get("", response_model=list[AgentTaskResponse])
+@router.get("", response_model=List[AgentTaskResponse])
 async def list_agent_tasks(
     story_id: str,
-    status: str | None = Query(None),
+    status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """List agent tasks for a story"""

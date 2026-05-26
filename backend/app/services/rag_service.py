@@ -1,3 +1,4 @@
+from typing import List, Dict
 import os
 import json
 import numpy as np
@@ -17,10 +18,10 @@ class RAGService:
 
     def __init__(self):
         self.model = SentenceTransformer(settings.EMBEDDING_MODEL)
-        self.index: faiss.IndexFlatIP | None = None
+        self.index: faiss.IndexFlatIP
         self.metadata_path = f"{settings.FAISS_INDEX_PATH}_metadata.json"
         self.index_path = f"{settings.FAISS_INDEX_PATH}.bin"
-        self.chunk_metadata: list[dict] = []
+        self.chunk_metadata: List[dict] = []
         self._load_or_create_index()
 
     def _load_or_create_index(self) -> None:
@@ -43,7 +44,7 @@ class RAGService:
         with open(self.metadata_path, "w") as f:
             json.dump(self.chunk_metadata, f)
 
-    def _chunk_text(self, text: str, chunk_size: int = 300, overlap: int = 50) -> list[str]:
+    def _chunk_text(self, text: str, chunk_size: int = 300, overlap: int = 50) -> List[str]:
         """Split text into overlapping chunks (by token count approximation)"""
         words = text.split()
         chunks = []
@@ -112,7 +113,7 @@ class RAGService:
         query: str,
         story_id: str,
         top_k: int = 5,
-    ) -> list[str]:
+    ) -> List[str]:
         """
         Retrieve top-k relevant chunks for a query, filtered by story_id.
         """

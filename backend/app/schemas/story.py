@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict
 
 
 class StoryCreate(BaseModel):
@@ -31,8 +31,5 @@ class StoryResponse(BaseModel):
 
 class StoryDetailResponse(StoryResponse):
     """Story with all nested scenes and characters"""
-    from app.schemas.scene import SceneResponse
-    from app.schemas.character import CharacterResponse
-
-    scenes: list["SceneResponse"] = []
-    characters: list["CharacterResponse"] = []
+    scenes: List = []
+    characters: List = []

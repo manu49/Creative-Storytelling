@@ -1,3 +1,4 @@
+from typing import List, Dict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -9,7 +10,7 @@ from uuid import uuid4
 router = APIRouter(prefix="/stories", tags=["stories"])
 
 
-@router.get("", response_model=list[StoryResponse])
+@router.get("", response_model=List[StoryResponse])
 async def list_stories(db: AsyncSession = Depends(get_db)):
     """List all stories"""
     result = await db.execute(select(Story))

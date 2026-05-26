@@ -28,7 +28,7 @@ Use the flag_coherence_issues tool to report issues with severity levels.
 Provide constructive suggestions for improvement."""
 
     @property
-    def tools(self) -> list[ToolParam]:
+    def tools(self) -> List[ToolParam]:
         return COHERENCE_TOOLS
 
     async def _handle_tool_use(self, tool_name: str, tool_input: dict) -> str:

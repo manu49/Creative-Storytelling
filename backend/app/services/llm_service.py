@@ -2,7 +2,7 @@ from anthropic import AsyncAnthropic
 from anthropic.types.message import Message
 from anthropic.types.tool_param import ToolParam
 from app.config import get_settings
-from typing import AsyncIterator, Callable, Awaitable
+from typing import AsyncIterator, Callable, Awaitable, List, Dict, Optional
 
 settings = get_settings()
 
@@ -22,9 +22,9 @@ class LLMService:
     async def stream_generate(
         self,
         system_prompt: str,
-        messages: list[dict],
-        tools: list[ToolParam] | None = None,
-        model: str | None = None,
+        messages: List[dict],
+        tools: Optional[List[ToolParam]] = None,
+        model: Optional[str] = None,
         max_tokens: int = 4096,
     ) -> AsyncIterator[str]:
         """
@@ -54,10 +54,10 @@ class LLMService:
     async def run_tool_loop(
         self,
         system_prompt: str,
-        messages: list[dict],
-        tools: list[ToolParam],
+        messages: List[dict],
+        tools: List[ToolParam],
         tool_handler: Callable[[str, dict], Awaitable[str]],
-        model: str | None = None,
+        model: Optional[str] = None,
         max_iterations: int = 5,
     ) -> Message:
         """

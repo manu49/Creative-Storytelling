@@ -31,7 +31,7 @@ Focus on:
 Only suggest meaningful improvements, not nitpicky changes."""
 
     @property
-    def tools(self) -> list[ToolParam]:
+    def tools(self) -> List[ToolParam]:
         return GRAMMAR_TOOLS
 
     async def _handle_tool_use(self, tool_name: str, tool_input: dict) -> str:

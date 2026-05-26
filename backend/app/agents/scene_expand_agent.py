@@ -33,7 +33,7 @@ Write scenes that are:
 Remember to maintain narrative continuity with the existing story."""
 
     @property
-    def tools(self) -> list[ToolParam]:
+    def tools(self) -> List[ToolParam]:
         return SCENE_EXPAND_TOOLS
 
     async def _handle_tool_use(self, tool_name: str, tool_input: dict) -> str:
