@@ -1,73 +1,25 @@
-# Python 3.8 Compatibility Guide
+# Python 3.8 Compatibility
 
-## Overview
+The backend targets `requires-python = ">=3.8"`. Always follow these rules when writing or editing Python files in `backend/app/`.
 
-This project maintains **Python 3.8 compatibility** across the entire codebase. This document outlines the compatibility constraints and best practices used throughout the project.
+## Required typing imports
 
-## Why Python 3.8?
-
-- **System Constraint**: The deployment environment has Python 3.8.10 as the default/available Python version
-- **Legacy Support**: Many production environments still run Python 3.8
-- **Compatibility**: Ensures the project works across a broader range of systems
-
-## Key Python 3.8 Restrictions
-
-### 1. **Generic Type Syntax**
-
-❌ **Not Allowed (Python 3.9+)**
 ```python
-def get_items() -> list[str]:
-    return ["a", "b"]
-
-data: dict[str, int] = {"x": 1}
-result: tuple[int, str] = (42, "answer")
+from typing import List, Dict, Set, Tuple, Optional, Union, AsyncIterator, Callable, Awaitable
 ```
 
-✅ **Required (Python 3.8)**
-```python
-from typing import List, Dict, Tuple
+## Type annotation rules
 
-def get_items() -> List[str]:
-    return ["a", "b"]
+| Instead of (3.9+/3.10+) | Use (3.8 compat) |
+|---|---|
+| `list[str]` | `List[str]` |
+| `dict[str, int]` | `Dict[str, int]` |
+| `tuple[int, str]` | `Tuple[int, str]` |
+| `str \| None` | `Optional[str]` |
+| `int \| str` | `Union[int, str]` |
 
-data: Dict[str, int] = {"x": 1}
-result: Tuple[int, str] = (42, "answer")
-```
+## FastAPI response models
 
-### 2. **Union Type Syntax**
-
-❌ **Not Allowed (Python 3.10+)**
-```python
-value: str | None = None
-result: int | str = 42
-```
-
-✅ **Required (Python 3.8)**
-```python
-from typing import Optional, Union
-
-value: Optional[str] = None
-result: Union[int, str] = 42
-
-# Preferred for None: Optional[X] instead of Union[X, None]
-```
-
-### 3. **Type Annotations in Function Parameters**
-
-✅ **Correct**
-```python
-from typing import List, Optional
-
-async def process_data(
-    items: List[str],
-    filter_val: Optional[str] = None,
-) -> List[str]:
-    pass
-```
-
-### 4. **Response Models in FastAPI**
-
-✅ **Correct**
 ```python
 from typing import List
 from fastapi import APIRouter
@@ -77,121 +29,41 @@ async def list_items():
     pass
 ```
 
-## Common Pitfalls
+## Common mistakes
 
-### Missing Commas in Function Signatures
+**Missing commas in function signatures**
 ```python
-# ❌ WRONG
+# Wrong
 async def my_func(
     param1: str
     param2: int
-) -> None:
+) -> None: ...
 
-# ✅ CORRECT  
+# Correct
 async def my_func(
     param1: str,
     param2: int,
-) -> None:
+) -> None: ...
 ```
 
-### Forgotten Type Imports
+**Pydantic Settings with extra env vars** — always add `extra = "ignore"` so `NEXT_PUBLIC_*` vars don't break validation:
 ```python
-# ❌ WRONG - List not imported
-def get_items() -> List[str]:
-    return []
-
-# ✅ CORRECT
-from typing import List
-
-def get_items() -> List[str]:
-    return []
-```
-
-### Configuration Classes with Extra Fields
-```python
-# ✅ CORRECT - Allow extra env vars (e.g., NEXT_PUBLIC_*)
 class Settings(BaseSettings):
-    ANTHROPIC_API_KEY: str
-    
     class Config:
         env_file = ".env"
-        extra = "ignore"  # Critical for multi-env .env files
+        extra = "ignore"
 ```
 
-## Type Annotations Checklist
-
-When adding new code, use this checklist:
-
-- [ ] No `list[X]`, `dict[X, Y]`, `tuple[X, Y]` - use `List`, `Dict`, `Tuple` instead
-- [ ] No `X | Y` union syntax - use `Union[X, Y]` or `Optional[X]`
-- [ ] All necessary types imported from `typing` module
-- [ ] Function parameters have commas between them (no missing commas)
-- [ ] Optional parameters use `Optional[T]` not `T | None`
-- [ ] List return types use `List[T]` not `list[T]`
-
-## Standard Imports for Compatibility
-
-```python
-# Always include these when needed
-from typing import (
-    List,
-    Dict, 
-    Set,
-    Tuple,
-    Optional,
-    Union,
-    AsyncIterator,
-    Callable,
-    Awaitable,
-)
-
-# Async
-from typing import AsyncIterator
-
-# Callables
-from typing import Callable, Awaitable
-```
-
-## Testing Compatibility
-
-To verify Python 3.8 compatibility:
+## Verify compatibility
 
 ```bash
-# Check syntax
-python3.8 -m py_compile app/services/llm_service.py
-
-# Or test all files
-python3 << 'EOF'
-import py_compile
-import glob
-
-for filepath in glob.glob('app/**/*.py', recursive=True):
+python3 -c "
+import py_compile, glob
+for f in glob.glob('app/**/*.py', recursive=True):
     try:
-        py_compile.compile(filepath, doraise=True)
-        print(f'✅ {filepath}')
+        py_compile.compile(f, doraise=True)
+        print(f'OK  {f}')
     except py_compile.PyCompileError as e:
-        print(f'❌ {filepath}: {e}')
-EOF
+        print(f'ERR {f}: {e}')
+"
 ```
-
-## Migration to Python 3.9+
-
-If the project ever upgrades to Python 3.9+, these syntax forms can be modernized:
-
-- `list[str]` (replaces `List[str]`)
-- `dict[str, int]` (replaces `Dict[str, int]`)
-- `tuple[int, str]` (replaces `Tuple[int, str]`)
-- `str | None` (replaces `Optional[str]`)
-
-Until then, stick to the typing module imports for full Python 3.8 compatibility.
-
-## Related Files
-
-- **Backend**: `/backend/app/` - All Python files use these standards
-- **Dependencies**: `/backend/pyproject.toml` - `requires-python = ">=3.8"`
-- **Configuration**: `/backend/app/config.py` - Pydantic Settings with extra="ignore"
-
-## Questions?
-
-When in doubt, refer to the Python 3.8 typing module documentation:
-https://docs.python.org/3.8/library/typing.html
