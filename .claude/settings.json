@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uvicorn:*)",
+      "Bash(npm run *)",
+      "Bash(npm install*)",
+      "Bash(pip install*)",
+      "Bash(python -m mypy*)",
+      "Bash(python -m ruff*)",
+      "Bash(ruff check*)",
+      "Bash(black *)",
+      "Bash(npx tsc*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git status*)"
+    ],
+    "deny": []
+  }
+}
