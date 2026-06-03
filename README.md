@@ -2,6 +2,14 @@
 
 A web-based creative writing assistant powered by Claude AI. Writers dump raw ideas (scenes, dialogues, characters), and an agentic AI framework generates and refines the full story in the background while you continue writing.
 
+## Live Demo
+
+**[manu49.github.io/Creative-Storytelling](https://manu49.github.io/Creative-Storytelling/)**
+
+No setup required — the demo runs entirely in your browser. Drop in a single raw scene and watch a team of Claude agents (Haiku + Sonnet) expand it into a complete, multi-scene draft in real time, with accept/reject suggestions streamed back live.
+
+[![Creative Storytelling demo thumbnail](docs/thumbnail.png)](https://manu49.github.io/Creative-Storytelling/)
+
 ## Features
 
 - **Idea Dump**: Quickly capture raw creative ideas in text or voice
