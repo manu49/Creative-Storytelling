@@ -28,14 +28,28 @@ os.environ.setdefault("FAISS_INDEX_PATH", "/tmp/test_faiss_index")
 #     at import time, so we must replace the attribute on the real module
 #     (which is already installed as faiss-cpu was) before that line runs.
 # ---------------------------------------------------------------------------
-import sentence_transformers as _st_mod  # imported here so we can mutate it
+import types
 
 _mock_st_instance = MagicMock()
 _mock_st_instance.encode = MagicMock(return_value=np.zeros(384, dtype="float32"))
 _MockSentenceTransformer = MagicMock(return_value=_mock_st_instance)
 
-# Replace the class on the module — rag_service.py will pick up this binding
-_st_mod.SentenceTransformer = _MockSentenceTransformer  # type: ignore[attr-defined]
+try:
+    import sentence_transformers as _st_mod  # imported here so we can mutate it
+    # Replace the class on the module — rag_service.py will pick up this binding
+    _st_mod.SentenceTransformer = _MockSentenceTransformer  # type: ignore[attr-defined]
+except Exception:
+    # sentence-transformers (and its heavy torch dependency) isn't installed —
+    # provide a lightweight stub so the suite runs in lean environments.
+    _st_mod = types.ModuleType("sentence_transformers")
+    _st_mod.SentenceTransformer = _MockSentenceTransformer
+    sys.modules["sentence_transformers"] = _st_mod
+
+# faiss is likewise optional for the test suite; stub it if unavailable.
+try:
+    import faiss  # noqa: F401
+except Exception:
+    sys.modules["faiss"] = MagicMock()
 
 # ---------------------------------------------------------------------------
 # 3.  Now it's safe to import the app

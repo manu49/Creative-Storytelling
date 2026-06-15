@@ -60,23 +60,29 @@ Remember to maintain narrative continuity with the existing story."""
         return json.dumps({"status": "error", "message": f"Unknown tool: {tool_name}"})
 
     def _extract_suggestion(self, response) -> str:
-        """Extract the expanded scene content"""
+        """Extract the expanded scene content.
+
+        Prefer the structured ``expand_scene`` tool output; only fall back to a
+        plain text block if no tool call is present. (Claude often emits a short
+        text preamble *before* the tool_use block, so checking text first would
+        return that preamble instead of the actual scene.)
+        """
+        text_fallback = None
         for block in response.content:
-            if hasattr(block, "text"):
-                return block.text
-            elif hasattr(block, "type") and block.type == "tool_use":
-                if block.name == "expand_scene":
-                    content = block.input.get("expanded_content", "")
-                    dialogue = block.input.get("suggested_dialogue", [])
-                    notes = block.input.get("scene_notes", "")
+            if getattr(block, "type", None) == "tool_use" and block.name == "expand_scene":
+                content = block.input.get("expanded_content", "")
+                dialogue = block.input.get("suggested_dialogue", [])
+                notes = block.input.get("scene_notes", "")
 
-                    result = content + "\n"
-                    if dialogue:
-                        result += "\n### Key Dialogue:\n"
-                        for line in dialogue:
-                            result += f"- {line}\n"
-                    if notes:
-                        result += f"\n### Notes:\n{notes}\n"
-                    return result
+                result = content + "\n"
+                if dialogue:
+                    result += "\n### Key Dialogue:\n"
+                    for line in dialogue:
+                        result += f"- {line}\n"
+                if notes:
+                    result += f"\n### Notes:\n{notes}\n"
+                return result
+            elif text_fallback is None and hasattr(block, "text"):
+                text_fallback = block.text
 
-        return "Scene generation failed"
+        return text_fallback if text_fallback else "Scene generation failed"
