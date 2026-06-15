@@ -22,6 +22,7 @@ class AgentTaskResponse(BaseModel):
     task_type: str
     status: str
     priority: int
+    input_context: Optional[str] = None
     suggestion: Optional[str] = None
     tool_calls_log: Optional[str] = None
     error_message: Optional[str] = None

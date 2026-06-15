@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -28,7 +29,7 @@ async def dump_idea(
         task_type="idea_generate",
         status="pending",
         priority=1,  # Highest priority
-        input_context=str(data),
+        input_context=json.dumps(data),
     )
     db.add(task)
     await db.commit()

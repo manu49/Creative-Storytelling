@@ -157,9 +157,43 @@ class BaseAgent(ABC):
             print(f"❌ Error in {self.task_type}: {e}\n{error_details}")
             raise
 
+    @staticmethod
+    def _extract_idea_text(input_context: Optional[str]) -> str:
+        """Pull the writer's raw idea text out of a task's input_context.
+
+        The ideas router stores the request body (e.g.
+        ``{"raw_text": "...", "source_type": "text"}``). Older rows were saved
+        with ``str(dict)`` (Python repr) and newer ones with ``json.dumps``, so
+        try JSON first and fall back to ``ast.literal_eval`` before treating the
+        value as a plain string.
+        """
+        if not input_context:
+            return ""
+
+        parsed = None
+        try:
+            parsed = json.loads(input_context)
+        except (ValueError, TypeError):
+            try:
+                import ast
+
+                parsed = ast.literal_eval(input_context)
+            except (ValueError, SyntaxError):
+                parsed = None
+
+        if isinstance(parsed, dict):
+            return str(parsed.get("raw_text") or parsed.get("text") or "").strip()
+        return str(input_context).strip()
+
     def _build_user_prompt(self, task: AgentTask, context: dict) -> str:
         """Build the user prompt with context"""
         prompt = f"Task: {task.task_type}\n\n"
+
+        # Include the writer's raw idea (e.g. a dumped scene) so generation
+        # agents actually develop the story around the user's input.
+        idea_text = self._extract_idea_text(getattr(task, "input_context", None))
+        if idea_text:
+            prompt += f"Raw idea to develop into a full scene:\n{idea_text}\n\n"
 
         if "scene" in context:
             scene = context["scene"]
